@@ -16,7 +16,6 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// Serve built frontend in production. In dev, Vite handles the frontend.
 app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/socket.io')) return next();
@@ -26,40 +25,193 @@ app.get('*', (req, res, next) => {
 });
 
 // =================================================================
+// WORD LISTS
+// =================================================================
+
+const WORDS_BILINGUAL = [
+  // Animales (25)
+  { es: 'gato', pt: 'gato' },
+  { es: 'perro', pt: 'cachorro' },
+  { es: 'elefante', pt: 'elefante' },
+  { es: 'mariposa', pt: 'borboleta' },
+  { es: 'conejo', pt: 'coelho' },
+  { es: 'vaca', pt: 'vaca' },
+  { es: 'chancho', pt: 'porco' },
+  { es: 'abeja', pt: 'abelha' },
+  { es: 'tortuga', pt: 'tartaruga' },
+  { es: 'pez', pt: 'peixe' },
+  { es: 'ballena', pt: 'baleia' },
+  { es: 'tiburón', pt: 'tubarão' },
+  { es: 'delfín', pt: 'golfinho' },
+  { es: 'pingüino', pt: 'pinguim' },
+  { es: 'caballo', pt: 'cavalo' },
+  { es: 'cebra', pt: 'zebra' },
+  { es: 'jirafa', pt: 'girafa' },
+  { es: 'león', pt: 'leão' },
+  { es: 'oso', pt: 'urso' },
+  { es: 'mono', pt: 'macaco' },
+  { es: 'serpiente', pt: 'cobra' },
+  { es: 'cangrejo', pt: 'caranguejo' },
+  { es: 'pulpo', pt: 'polvo' },
+  { es: 'loro', pt: 'papagaio' },
+  { es: 'águila', pt: 'águia' },
+  // Comidas (20)
+  { es: 'pizza', pt: 'pizza' },
+  { es: 'helado', pt: 'sorvete' },
+  { es: 'hamburguesa', pt: 'hambúrguer' },
+  { es: 'manzana', pt: 'maçã' },
+  { es: 'banana', pt: 'banana' },
+  { es: 'frutilla', pt: 'morango' },
+  { es: 'sandía', pt: 'melancia' },
+  { es: 'piña', pt: 'abacaxi' },
+  { es: 'durazno', pt: 'pêssego' },
+  { es: 'cebolla', pt: 'cebola' },
+  { es: 'zanahoria', pt: 'cenoura' },
+  { es: 'tomate', pt: 'tomate' },
+  { es: 'queso', pt: 'queijo' },
+  { es: 'pan', pt: 'pão' },
+  { es: 'huevo', pt: 'ovo' },
+  { es: 'naranja', pt: 'laranja' },
+  { es: 'limón', pt: 'limão' },
+  { es: 'uva', pt: 'uva' },
+  { es: 'papa', pt: 'batata' },
+  { es: 'torta', pt: 'bolo' }, // REVISAR: "torta" en BR = tarta salada; "bolo" = pastel dulce
+  // Objetos cotidianos (15)
+  { es: 'silla', pt: 'cadeira' },
+  { es: 'mesa', pt: 'mesa' },
+  { es: 'llave', pt: 'chave' },
+  { es: 'paraguas', pt: 'guarda-chuva' },
+  { es: 'anteojos', pt: 'óculos' },
+  { es: 'reloj', pt: 'relógio' },
+  { es: 'libro', pt: 'livro' },
+  { es: 'lápiz', pt: 'lápis' },
+  { es: 'cama', pt: 'cama' },
+  { es: 'puerta', pt: 'porta' },
+  { es: 'ventana', pt: 'janela' },
+  { es: 'taza', pt: 'xícara' }, // REVISAR: "xícara" en BR = taza pequeña de café
+  { es: 'mochila', pt: 'mochila' },
+  { es: 'botella', pt: 'garrafa' },
+  { es: 'cuchillo', pt: 'faca' },
+  // Naturaleza (12)
+  { es: 'sol', pt: 'sol' },
+  { es: 'luna', pt: 'lua' },
+  { es: 'árbol', pt: 'árvore' },
+  { es: 'montaña', pt: 'montanha' },
+  { es: 'río', pt: 'rio' },
+  { es: 'flor', pt: 'flor' },
+  { es: 'nube', pt: 'nuvem' },
+  { es: 'lluvia', pt: 'chuva' },
+  { es: 'estrella', pt: 'estrela' },
+  { es: 'playa', pt: 'praia' },
+  { es: 'ola', pt: 'onda' },
+  { es: 'arcoíris', pt: 'arco-íris' },
+  // Profesiones (8)
+  { es: 'doctor', pt: 'médico' },
+  { es: 'bombero', pt: 'bombeiro' },
+  { es: 'payaso', pt: 'palhaço' },
+  { es: 'maestro', pt: 'professor' },
+  { es: 'policía', pt: 'policial' },
+  { es: 'astronauta', pt: 'astronauta' },
+  { es: 'cocinero', pt: 'cozinheiro' },
+  { es: 'rey', pt: 'rei' },
+  // Transporte (10)
+  { es: 'avión', pt: 'avião' },
+  { es: 'barco', pt: 'barco' },
+  { es: 'tren', pt: 'trem' },
+  { es: 'auto', pt: 'carro' },
+  { es: 'colectivo', pt: 'ônibus' },
+  { es: 'bicicleta', pt: 'bicicleta' },
+  { es: 'helicóptero', pt: 'helicóptero' },
+  { es: 'submarino', pt: 'submarino' },
+  { es: 'cohete', pt: 'foguete' },
+  { es: 'moto', pt: 'moto' },
+  // Deportes y juegos (8)
+  { es: 'pelota', pt: 'bola' },
+  { es: 'ajedrez', pt: 'xadrez' },
+  { es: 'dado', pt: 'dado' },
+  { es: 'patines', pt: 'patins' },
+  { es: 'surf', pt: 'surfe' },
+  { es: 'boxeo', pt: 'boxe' },
+  { es: 'tenis', pt: 'tênis' },
+  { es: 'arco', pt: 'arco' },
+  // Cuerpo (7)
+  { es: 'ojo', pt: 'olho' },
+  { es: 'nariz', pt: 'nariz' },
+  { es: 'boca', pt: 'boca' },
+  { es: 'mano', pt: 'mão' },
+  { es: 'pie', pt: 'pé' },
+  { es: 'oreja', pt: 'orelha' },
+  { es: 'corazón', pt: 'coração' },
+  // Ropa (6)
+  { es: 'sombrero', pt: 'chapéu' },
+  { es: 'zapato', pt: 'sapato' },
+  { es: 'camisa', pt: 'camisa' },
+  { es: 'vestido', pt: 'vestido' },
+  { es: 'guantes', pt: 'luvas' },
+  { es: 'media', pt: 'meia' },
+  // Casa (5)
+  { es: 'casa', pt: 'casa' },
+  { es: 'cocina', pt: 'cozinha' },
+  { es: 'baño', pt: 'banheiro' },
+  { es: 'escalera', pt: 'escada' },
+  { es: 'chimenea', pt: 'lareira' },
+  // Formas (4)
+  { es: 'círculo', pt: 'círculo' },
+  { es: 'triángulo', pt: 'triângulo' },
+  { es: 'cuadrado', pt: 'quadrado' },
+  { es: 'flecha', pt: 'seta' },
+  // Herramientas (5)
+  { es: 'martillo', pt: 'martelo' },
+  { es: 'tijeras', pt: 'tesoura' },
+  { es: 'escoba', pt: 'vassoura' },
+  { es: 'linterna', pt: 'lanterna' },
+  { es: 'candado', pt: 'cadeado' },
+  // Instrumentos (7)
+  { es: 'piano', pt: 'piano' },
+  { es: 'guitarra', pt: 'violão' },
+  { es: 'tambor', pt: 'tambor' },
+  { es: 'trompeta', pt: 'trompete' },
+  { es: 'flauta', pt: 'flauta' },
+  { es: 'violín', pt: 'violino' },
+  { es: 'micrófono', pt: 'microfone' },
+  // Misc (18)
+  { es: 'globo', pt: 'balão' }, // REVISAR: "globo" en BR evoca más una esfera/globe
+  { es: 'regalo', pt: 'presente' },
+  { es: 'vela', pt: 'vela' },
+  { es: 'corona', pt: 'coroa' },
+  { es: 'espada', pt: 'espada' },
+  { es: 'fantasma', pt: 'fantasma' },
+  { es: 'robot', pt: 'robô' },
+  { es: 'cámara', pt: 'câmera' },
+  { es: 'televisión', pt: 'televisão' },
+  { es: 'teléfono', pt: 'telefone' },
+  { es: 'computadora', pt: 'computador' },
+  { es: 'puente', pt: 'ponte' },
+  { es: 'castillo', pt: 'castelo' },
+  { es: 'bandera', pt: 'bandeira' },
+  { es: 'semáforo', pt: 'semáforo' },
+  { es: 'anillo', pt: 'anel' },
+  { es: 'collar', pt: 'colar' },
+  { es: 'espejo', pt: 'espelho' },
+];
+
+const WORDS_ES_ONLY = [
+  'asado', 'mate', 'empanada', 'choripán', 'medialuna',
+  'alfajor', 'dulce de leche', 'milanesa', 'locro', 'tango',
+  'poncho', 'gaucho', 'bandoneón', 'boleadoras', 'chimichurri',
+];
+
+const WORDS_PT_ONLY = [
+  'feijoada', 'brigadeiro', 'açaí', 'samba', 'pão de queijo',
+  'coxinha', 'caipirinha', 'farofa', 'capoeira', 'carnaval',
+  'forró', 'churrasco',
+];
+
+// =================================================================
 // GAME STATE
 // =================================================================
 
-const rooms = new Map(); // code -> RoomState
-
-const WORDS = [
-  'casa', 'gato', 'perro', 'sol', 'luna', 'estrella', 'pez', 'manzana',
-  'banana', 'pizza', 'taco', 'pelota', 'auto', 'avion', 'barco', 'arbol',
-  'flor', 'montaña', 'rio', 'playa', 'libro', 'lapiz', 'computadora',
-  'telefono', 'silla', 'mesa', 'cama', 'puerta', 'ventana', 'reloj',
-  'mariposa', 'abeja', 'elefante', 'jirafa', 'tigre', 'leon', 'oso',
-  'conejo', 'raton', 'vaca', 'cerdo', 'pollo', 'sombrero', 'zapato',
-  'camisa', 'pantalon', 'anteojos', 'taza', 'tenedor', 'cuchillo', 'plato',
-  'helado', 'hamburguesa', 'torta', 'queso', 'huevo', 'frutilla', 'uva',
-  'sandia', 'pera', 'naranja', 'limon', 'zanahoria', 'tomate', 'papa',
-  'choclo', 'lechuga', 'pan', 'lluvia', 'nieve', 'viento', 'fuego',
-  'arcoiris', 'rayo', 'escuela', 'hospital', 'iglesia', 'parque',
-  'bicicleta', 'tren', 'colectivo', 'helicoptero', 'cohete', 'submarino',
-  'semaforo', 'puente', 'escalera', 'piano', 'guitarra', 'tambor',
-  'trompeta', 'camara', 'television', 'robot', 'fantasma', 'dragon',
-  'bruja', 'princesa', 'rey', 'reina', 'doctor', 'policia', 'bombero',
-  'profesor', 'astronauta', 'payaso', 'ninja', 'pirata', 'corazon',
-  'circulo', 'cuadrado', 'triangulo', 'flecha', 'globo', 'regalo',
-  'vela', 'llave', 'candado', 'martillo', 'sierra', 'paraguas',
-  'anillo', 'collar', 'corona', 'espada', 'pingüino', 'tortuga', 'caballo',
-  'serpiente', 'araña', 'cangrejo', 'tiburon', 'ballena', 'delfin',
-  'pulpo', 'medusa', 'cactus', 'palmera', 'hongo', 'mariquita', 'oruga',
-  'buho', 'aguila', 'loro', 'flamenco', 'cisne', 'pavo', 'zorro',
-  'lobo', 'cebra', 'canguro', 'koala', 'panda', 'mono', 'gorila',
-  'rinoceronte', 'hipopotamo', 'cocodrilo', 'camello', 'asado', 'mate',
-  'empanada', 'choripan', 'medialuna', 'alfajor', 'dulce de leche',
-  'tango', 'futbol', 'cancha', 'pileta', 'bandera', 'mapa', 'dado',
-  'naipe', 'ajedrez', 'dardos', 'columpio', 'tobogan', 'arenero'
-];
+const rooms = new Map();
 
 // =================================================================
 // HELPERS
@@ -86,11 +238,31 @@ function normalize(s) {
     .replace(/\s+/g, ' ');
 }
 
-function pickWord(recent = []) {
-  const recentSet = new Set(recent.map(normalize));
-  const pool = WORDS.filter(w => !recentSet.has(normalize(w)));
-  const list = pool.length > 0 ? pool : WORDS;
-  return list[Math.floor(Math.random() * list.length)];
+function pickWordForRoom(room) {
+  const languages = room.settings?.languages || ['es'];
+  const isBilingual = languages.length >= 2;
+  const recentEs = new Set((room.recentWords || []).map(w => normalize(w.es || w)));
+  const recentPt = new Set((room.recentWords || []).map(w => normalize(w.pt || w)));
+
+  if (isBilingual) {
+    const pool = WORDS_BILINGUAL.filter(
+      w => !recentEs.has(normalize(w.es)) && !recentPt.has(normalize(w.pt))
+    );
+    const list = pool.length > 0 ? pool : WORDS_BILINGUAL;
+    return list[Math.floor(Math.random() * list.length)];
+  } else if (languages[0] === 'pt') {
+    const ptPool = [...WORDS_BILINGUAL.map(w => w.pt), ...WORDS_PT_ONLY];
+    const pool = ptPool.filter(w => !recentPt.has(normalize(w)));
+    const list = pool.length > 0 ? pool : ptPool;
+    const word = list[Math.floor(Math.random() * list.length)];
+    return { es: word, pt: word };
+  } else {
+    const esPool = [...WORDS_BILINGUAL.map(w => w.es), ...WORDS_ES_ONLY];
+    const pool = esPool.filter(w => !recentEs.has(normalize(w)));
+    const list = pool.length > 0 ? pool : esPool;
+    const word = list[Math.floor(Math.random() * list.length)];
+    return { es: word, pt: word };
+  }
 }
 
 function maskWord(word, revealed = []) {
@@ -117,11 +289,43 @@ function levenshtein(a, b) {
   return matrix[b.length][a.length];
 }
 
-// View room state from a specific player's perspective (mask the word for non-drawers)
 function viewForPlayer(room, playerId) {
   const isDrawer = room.currentDrawerId === playerId;
   const me = room.players.find(p => p.id === playerId);
   const reveal = isDrawer || room.status === 'roundEnd' || room.status === 'gameEnd' || me?.hasGuessedThisRound;
+
+  const languages = room.settings.languages || ['es'];
+  const isBilingual = languages.length >= 2;
+
+  // Determine which language word to use for this player
+  const playerLang = (me?.preferredLang && languages.includes(me.preferredLang))
+    ? me.preferredLang
+    : languages[0];
+
+  const myWord = playerLang === 'pt' ? room.currentWordPt : room.currentWordEs;
+  const myRevealedIndices = playerLang === 'pt'
+    ? (room.revealedIndicesPt || [])
+    : (room.revealedIndicesEs || []);
+
+  let currentWordDisplay = null;
+  let maskedWord = '';
+  let wordLength = 0;
+
+  if (room.currentWordEs) {
+    if (reveal) {
+      if (isDrawer) {
+        currentWordDisplay = isBilingual
+          ? `${room.currentWordEs} / ${room.currentWordPt}`
+          : room.currentWordEs;
+      } else {
+        currentWordDisplay = myWord;
+      }
+    } else {
+      maskedWord = maskWord(myWord, myRevealedIndices);
+      wordLength = myWord.length;
+    }
+  }
+
   return {
     code: room.code,
     hostId: room.hostId,
@@ -135,9 +339,9 @@ function viewForPlayer(room, playerId) {
     status: room.status,
     currentRound: room.currentRound,
     currentDrawerId: room.currentDrawerId,
-    currentWord: reveal ? room.currentWord : null,
-    maskedWord: room.currentWord ? maskWord(room.currentWord, room.revealedIndices || []) : '',
-    wordLength: room.currentWord ? room.currentWord.length : 0,
+    currentWord: currentWordDisplay,
+    maskedWord,
+    wordLength,
     revealedWord: room.revealedWord,
     roundStartTime: room.roundStartTime,
     roundEndTime: room.roundEndTime,
@@ -173,16 +377,21 @@ function clearAllTimers(room) {
 function startNewTurn(room) {
   clearAllTimers(room);
   const drawerId = room.drawerOrder[room.currentDrawerIndex];
-  const word = pickWord(room.recentWords);
+  const wordPair = pickWordForRoom(room);
+
+  const languages = room.settings.languages || ['es'];
+  const isBilingual = languages.length >= 2;
 
   room.status = 'playing';
   room.currentDrawerId = drawerId;
-  room.currentWord = word;
-  room.revealedIndices = [];
+  room.currentWordEs = wordPair.es;
+  room.currentWordPt = wordPair.pt;
+  room.revealedIndicesEs = [];
+  room.revealedIndicesPt = [];
   room.revealedWord = null;
   room.roundStartTime = Date.now();
   room.roundEndTime = Date.now() + (room.settings.roundDuration * 1000);
-  room.recentWords = [...(room.recentWords || []), word].slice(-30);
+  room.recentWords = [...(room.recentWords || []), wordPair].slice(-30);
   room.strokes = [];
   room.players.forEach(p => {
     p.hasGuessedThisRound = false;
@@ -193,27 +402,43 @@ function startNewTurn(room) {
   const drawer = room.players.find(p => p.id === drawerId);
   pushChat(room, { type: 'system', message: `${drawer?.name || '?'} dibuja ahora` });
 
-  // End-of-round timer
   room.roundTimer = setTimeout(() => {
     if (room.status === 'playing') endRound(room);
   }, room.settings.roundDuration * 1000);
 
-  // Schedule progressive letter reveals
-  const wordLetters = word.replace(/\s/g, '').length;
+  // Schedule hint reveals per language
+  const wordLetters = wordPair.es.replace(/\s/g, '').length;
   const hintsCount = Math.max(0, Math.floor(wordLetters / 3));
   room.hintTimers = [];
   for (let i = 1; i <= hintsCount; i++) {
     const at = (room.settings.roundDuration * 1000) * (i / (hintsCount + 1));
     const t = setTimeout(() => {
       if (room.status !== 'playing') return;
-      const hidden = [];
-      for (let idx = 0; idx < word.length; idx++) {
-        if (word[idx] !== ' ' && !room.revealedIndices.includes(idx)) hidden.push(idx);
+
+      // Reveal a letter for ES word
+      const hiddenEs = [];
+      for (let idx = 0; idx < wordPair.es.length; idx++) {
+        if (wordPair.es[idx] !== ' ' && !room.revealedIndicesEs.includes(idx)) hiddenEs.push(idx);
       }
-      if (hidden.length > 0) {
-        room.revealedIndices.push(hidden[Math.floor(Math.random() * hidden.length)]);
-        broadcastRoom(room.code);
+      if (hiddenEs.length > 0) {
+        room.revealedIndicesEs.push(hiddenEs[Math.floor(Math.random() * hiddenEs.length)]);
       }
+
+      if (isBilingual) {
+        // Reveal a letter for PT word independently
+        const hiddenPt = [];
+        for (let idx = 0; idx < wordPair.pt.length; idx++) {
+          if (wordPair.pt[idx] !== ' ' && !room.revealedIndicesPt.includes(idx)) hiddenPt.push(idx);
+        }
+        if (hiddenPt.length > 0) {
+          room.revealedIndicesPt.push(hiddenPt[Math.floor(Math.random() * hiddenPt.length)]);
+        }
+      } else {
+        // Mono mode: both words are the same, share indices
+        room.revealedIndicesPt = [...room.revealedIndicesEs];
+      }
+
+      broadcastRoom(room.code);
     }, at);
     room.hintTimers.push(t);
   }
@@ -224,6 +449,9 @@ function startNewTurn(room) {
 function endRound(room) {
   clearAllTimers(room);
 
+  const languages = room.settings.languages || ['es'];
+  const isBilingual = languages.length >= 2;
+
   const guessers = room.players.filter(p => p.id !== room.currentDrawerId);
   const correctCount = guessers.filter(p => p.hasGuessedThisRound).length;
   const drawerBonus = correctCount * 25;
@@ -231,28 +459,28 @@ function endRound(room) {
   if (drawer) drawer.score += drawerBonus;
 
   room.status = 'roundEnd';
-  room.revealedWord = room.currentWord;
-  pushChat(room, { type: 'system', message: `La palabra era: ${room.currentWord}` });
+  const wordDisplay = isBilingual
+    ? `${room.currentWordEs} / ${room.currentWordPt}`
+    : room.currentWordEs;
+  room.revealedWord = wordDisplay;
+  pushChat(room, { type: 'system', message: `La palabra era: ${wordDisplay}` });
   if (drawer && drawerBonus > 0) {
     pushChat(room, { type: 'system', message: `${drawer.name} ganó +${drawerBonus} pts por dibujar` });
   }
 
   broadcastRoom(room.code);
-
   room.endRoundTimer = setTimeout(() => advanceToNextTurn(room), 5000);
 }
 
 function advanceToNextTurn(room) {
   clearAllTimers(room);
   let nextIdx = room.currentDrawerIndex + 1;
-  // Skip drawers who have left
   while (nextIdx < room.drawerOrder.length) {
     if (room.players.find(p => p.id === room.drawerOrder[nextIdx])) break;
     nextIdx++;
   }
 
   if (nextIdx >= room.drawerOrder.length) {
-    // Round complete
     const nextRound = room.currentRound + 1;
     if (nextRound >= room.settings.totalRounds) return endGame(room);
     room.currentRound = nextRound;
@@ -296,9 +524,10 @@ io.on('connection', (socket) => {
   let myRoomCode = null;
   let myUserId = null;
 
-  socket.on('createRoom', ({ name }, ack) => {
+  socket.on('createRoom', ({ name, preferredLang }, ack) => {
     const cleanName = (name || '').toString().trim().slice(0, 20);
     if (!cleanName) return ack?.({ error: 'Nombre requerido' });
+    const lang = ['es', 'pt'].includes(preferredLang) ? preferredLang : 'es';
     const code = genRoomCode();
     const userId = genId();
     const room = {
@@ -307,12 +536,15 @@ io.on('connection', (socket) => {
         id: userId, socketId: socket.id, name: cleanName,
         avatarSeed: Math.floor(Math.random() * 1000),
         score: 0, hasGuessedThisRound: false, guessedAt: null,
+        preferredLang: lang,
       }],
-      settings: { totalRounds: 3, roundDuration: 80 },
+      settings: { totalRounds: 3, roundDuration: 80, languages: ['es'] },
       status: 'lobby',
       currentRound: 0, drawerOrder: [], currentDrawerIndex: 0,
-      currentDrawerId: null, currentWord: null,
-      revealedIndices: [], revealedWord: null,
+      currentDrawerId: null,
+      currentWordEs: null, currentWordPt: null,
+      revealedIndicesEs: [], revealedIndicesPt: [],
+      revealedWord: null,
       roundStartTime: 0, roundEndTime: 0,
       strokes: [], chat: [], recentWords: [],
       roundTimer: null, endRoundTimer: null, hintTimers: [],
@@ -325,9 +557,10 @@ io.on('connection', (socket) => {
     broadcastRoom(code);
   });
 
-  socket.on('joinRoom', ({ code, name }, ack) => {
+  socket.on('joinRoom', ({ code, name, preferredLang }, ack) => {
     const c = (code || '').toString().trim().toUpperCase();
     const cleanName = (name || '').toString().trim().slice(0, 20) || 'Jugador';
+    const lang = ['es', 'pt'].includes(preferredLang) ? preferredLang : 'es';
     const room = rooms.get(c);
     if (!room) return ack?.({ error: 'Sala no encontrada' });
     if (room.players.length >= 12) return ack?.({ error: 'Sala llena' });
@@ -336,6 +569,7 @@ io.on('connection', (socket) => {
       id: userId, socketId: socket.id, name: cleanName,
       avatarSeed: Math.floor(Math.random() * 1000),
       score: 0, hasGuessedThisRound: false, guessedAt: null,
+      preferredLang: lang,
     });
     pushChat(room, { type: 'system', message: `${cleanName} se unió` });
     socket.join(c);
@@ -355,6 +589,10 @@ io.on('connection', (socket) => {
     if (!room || room.hostId !== myUserId || room.status !== 'lobby') return;
     if (settings.totalRounds) room.settings.totalRounds = Math.max(1, Math.min(10, parseInt(settings.totalRounds, 10)));
     if (settings.roundDuration) room.settings.roundDuration = Math.max(30, Math.min(180, parseInt(settings.roundDuration, 10)));
+    if (settings.languages && Array.isArray(settings.languages)) {
+      const valid = settings.languages.filter(l => ['es', 'pt'].includes(l));
+      if (valid.length > 0) room.settings.languages = valid.slice(0, 2);
+    }
     broadcastRoom(myRoomCode);
   });
 
@@ -382,12 +620,12 @@ io.on('connection', (socket) => {
     const t = (text || '').toString().slice(0, 60).trim();
     if (!t) return;
 
-    // If actively playing and player is a guesser who hasn't guessed yet → check guess
     if (room.status === 'playing' && room.currentDrawerId !== myUserId && !me.hasGuessedThisRound) {
       const guess = normalize(t);
-      const target = normalize(room.currentWord);
+      const targetEs = normalize(room.currentWordEs || '');
+      const targetPt = normalize(room.currentWordPt || '');
 
-      if (guess === target) {
+      if (guess === targetEs || guess === targetPt) {
         const now = Date.now();
         const guessOrder = room.players.filter(p => p.hasGuessedThisRound).length;
         const timeRatio = Math.max(0, (room.roundEndTime - now) / (room.settings.roundDuration * 1000));
@@ -405,7 +643,11 @@ io.on('connection', (socket) => {
         }
         return;
       }
-      const isClose = target.length >= 4 && guess.length === target.length && levenshtein(guess, target) === 1;
+
+      const isCloseEs = targetEs.length >= 4 && guess.length === targetEs.length && levenshtein(guess, targetEs) === 1;
+      const isClosePt = targetPt.length >= 4 && guess.length === targetPt.length && levenshtein(guess, targetPt) === 1;
+      const isClose = isCloseEs || isClosePt;
+
       pushChat(room, {
         type: isClose ? 'close' : 'message',
         playerId: myUserId, playerName: me.name, message: t
@@ -414,7 +656,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Regular chat (lobby, drawer, already-guessed, round-end)
     pushChat(room, { type: 'message', playerId: myUserId, playerName: me.name, message: t });
     broadcastRoom(myRoomCode);
   });

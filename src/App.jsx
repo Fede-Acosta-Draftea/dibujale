@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import {
   Pencil, Eraser, Trash2, Send, Users, Trophy, Crown, Copy, Check,
@@ -27,6 +27,113 @@ const COLORS = [
 ];
 
 const BRUSH_SIZES = [3, 7, 14, 24, 38];
+
+// =================================================================
+//                          I18N
+// =================================================================
+
+const I18N = {
+  es: {
+    tuNombre: 'Tu nombre',
+    comoTeLlamas: '¿Cómo te llamás?',
+    crearSala: 'Crear sala',
+    unirmeASala: 'Unirme a sala',
+    codigoDeSala: 'Código de sala',
+    volver: 'Volver',
+    entrar: 'Entrar',
+    salir: 'Salir',
+    jugadores: 'Jugadores',
+    configuracion: 'Configuración',
+    rondas: 'Rondas',
+    segundosTurno: 'Segundos/turno',
+    idiomasDeLaSala: 'Idiomas de la sala',
+    empezar: '¡EMPEZAR!',
+    necesitasAlMenos2: 'Necesitás al menos 2 jugadores',
+    esperandoAnfitrion: 'Esperando que el anfitrión empiece...',
+    esperandoMasJugadores: 'Esperando que se sumen más jugadores...',
+    compartiElCodigo: 'Compartí el código de 4 letras con tus amigos',
+    copiarLink: 'Copiar link de invitación',
+    copiado: '¡Copiado!',
+    tocaParaCopiar: 'Tocá para copiar',
+    tuPalabra: 'Tu palabra',
+    letrasAdivina: 'letras — adiviná',
+    adivinaste: '¡Adivinaste!',
+    estaDibujando: 'está dibujando...',
+    chat: 'Chat',
+    estasDibujando: 'Estás dibujando...',
+    yaAdivinaste: '¡Ya adivinaste!',
+    esperaProximaRonda: 'Esperá la próxima ronda...',
+    escribiTuIntento: 'Escribí tu intento...',
+    adivino: 'adivinó',
+    cerca: '(¡cerca!)',
+    laPalabraEra: 'La palabra era:',
+    finDeTurno: 'Fin de turno',
+    proximoTurno: 'Próximo turno...',
+    finDelJuego: 'FIN DEL JUEGO',
+    ganador: '¡GANADOR!',
+    tablaFinal: 'Tabla final',
+    otraVez: 'Otra vez',
+    elAnfitriondecide: 'El anfitrión decide...',
+    conectando: 'Conectando...',
+    subtitulo: 'Multijugador online — pasala bien con tus amigos',
+    dibujayAdivina: 'DIBUJÁ Y ADIVINÁ',
+    ronda: 'Ronda',
+    adivinaron: 'adivinaron',
+    vos: 'vos',
+  },
+  pt: {
+    tuNombre: 'Seu nome',
+    comoTeLlamas: 'Como você se chama?',
+    crearSala: 'Criar sala',
+    unirmeASala: 'Entrar na sala',
+    codigoDeSala: 'Código da sala',
+    volver: 'Voltar',
+    entrar: 'Entrar',
+    salir: 'Sair',
+    jugadores: 'Jogadores',
+    configuracion: 'Configuração',
+    rondas: 'Rodadas',
+    segundosTurno: 'Segundos/turno',
+    idiomasDeLaSala: 'Idiomas da sala',
+    empezar: 'COMEÇAR!',
+    necesitasAlMenos2: 'Precisa de pelo menos 2 jogadores',
+    esperandoAnfitrion: 'Aguardando o anfitrião começar...',
+    esperandoMasJugadores: 'Aguardando mais jogadores...',
+    compartiElCodigo: 'Compartilhe o código de 4 letras com seus amigos',
+    copiarLink: 'Copiar link de convite',
+    copiado: 'Copiado!',
+    tocaParaCopiar: 'Toque para copiar',
+    tuPalabra: 'Sua palavra',
+    letrasAdivina: 'letras — adivinhe',
+    adivinaste: 'Você adivinhou!',
+    estaDibujando: 'está desenhando...',
+    chat: 'Chat',
+    estasDibujando: 'Você está desenhando...',
+    yaAdivinaste: 'Você já adivinhou!',
+    esperaProximaRonda: 'Aguarde a próxima rodada...',
+    escribiTuIntento: 'Escreva sua tentativa...',
+    adivino: 'adivinhou',
+    cerca: '(quase!)',
+    laPalabraEra: 'A palavra era:',
+    finDeTurno: 'Fim do turno',
+    proximoTurno: 'Próximo turno...',
+    finDelJuego: 'FIM DO JOGO',
+    ganador: 'VENCEDOR!',
+    tablaFinal: 'Placar final',
+    otraVez: 'Jogar de novo',
+    elAnfitriondecide: 'O anfitrião decide...',
+    conectando: 'Conectando...',
+    subtitulo: 'Multijogador online — divirta-se com seus amigos',
+    dibujayAdivina: 'DESENHE E ADIVINHE',
+    ronda: 'Rodada',
+    adivinaron: 'adivinharam',
+    vos: 'você',
+  },
+};
+
+function t(key, lang) {
+  return I18N[lang]?.[key] ?? I18N.es[key] ?? key;
+}
 
 // =================================================================
 //                          HELPERS
@@ -181,8 +288,9 @@ function DrawingCanvas({ strokes, isDrawer, color, brushSize, tool, onStrokeComp
 //                          HOME SCREEN
 // =================================================================
 
-function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, error, busy }) {
+function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, error, busy, preferredLang, setPreferredLang }) {
   const [mode, setMode] = useState(null);
+  const tk = (key) => t(key, preferredLang);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 relative" style={{ background: '#FAF5E9' }}>
@@ -196,27 +304,53 @@ function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, er
         <div className="text-center mb-8">
           <div className="inline-block transform -rotate-2 mb-4">
             <div className="bg-yellow-300 px-6 py-2 border-[3px] border-black" style={{ boxShadow: '6px 6px 0 0 #1a1a1a' }}>
-              <span className="text-sm font-bold tracking-widest">DIBUJÁ Y ADIVINÁ</span>
+              <span className="text-sm font-bold tracking-widest">{tk('dibujayAdivina')}</span>
             </div>
           </div>
           <h1 className="text-7xl sm:text-8xl leading-none" style={{ fontFamily: '"Bagel Fat One", cursive', color: '#1a1a1a', textShadow: '5px 5px 0 #FF6B6B' }}>
             DIBUJALE
           </h1>
           <p className="mt-4 text-lg font-bold opacity-80">
-            Multijugador online — pasala bien con tus amigos
+            {tk('subtitulo')}
           </p>
         </div>
 
         <div className="bg-white border-[3px] border-black rounded-3xl p-6 sm:p-8" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
-          <label className="block mb-2 text-sm font-bold tracking-wide uppercase">Tu nombre</label>
+          <label className="block mb-2 text-sm font-bold tracking-wide uppercase">{tk('tuNombre')}</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="¿Cómo te llamás?"
+            placeholder={tk('comoTeLlamas')}
             maxLength={20}
             className="w-full px-4 py-3 text-lg border-[3px] border-black rounded-xl focus:outline-none bg-yellow-50 font-bold"
           />
+
+          {/* Language picker */}
+          <div className="mt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setPreferredLang('es')}
+                className="px-4 py-3 border-[3px] border-black rounded-xl font-bold text-lg transition-transform hover:-translate-y-0.5"
+                style={{
+                  background: preferredLang === 'es' ? '#FFD93D' : '#FFFFFF',
+                  boxShadow: '4px 4px 0 0 #1a1a1a',
+                }}
+              >
+                🇪🇸 Español
+              </button>
+              <button
+                onClick={() => setPreferredLang('pt')}
+                className="px-4 py-3 border-[3px] border-black rounded-xl font-bold text-lg transition-transform hover:-translate-y-0.5"
+                style={{
+                  background: preferredLang === 'pt' ? '#FFD93D' : '#FFFFFF',
+                  boxShadow: '4px 4px 0 0 #1a1a1a',
+                }}
+              >
+                🇧🇷 Português
+              </button>
+            </div>
+          </div>
 
           {error && (
             <div className="mt-4 px-4 py-2 bg-red-100 border-2 border-red-400 rounded-lg text-red-800 text-sm font-bold">
@@ -233,23 +367,23 @@ function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, er
                 style={{ boxShadow: '5px 5px 0 0 #1a1a1a' }}
               >
                 <Sparkles className="inline w-5 h-5 mr-2" />
-                Crear sala
+                {tk('crearSala')}
               </button>
               <button
                 onClick={() => name.trim() && setMode('join')}
                 disabled={!name.trim() || busy}
-                className="px-6 py-4 bg-cyan-300 border-[3px] border-black rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:-translate-y-0.5 hover:translate-x-0.5"
+                className="px-6 py-4 bg-cyan-300 border-[3px] border-black rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:-translate-y-0.5"
                 style={{ boxShadow: '5px 5px 0 0 #1a1a1a' }}
               >
                 <ArrowRight className="inline w-5 h-5 mr-2" />
-                Unirme a sala
+                {tk('unirmeASala')}
               </button>
             </div>
           )}
 
           {mode === 'join' && (
             <div className="mt-6">
-              <label className="block mb-2 text-sm font-bold tracking-wide uppercase">Código de sala</label>
+              <label className="block mb-2 text-sm font-bold tracking-wide uppercase">{tk('codigoDeSala')}</label>
               <input
                 type="text"
                 value={joinCode}
@@ -264,20 +398,20 @@ function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, er
                   onClick={() => setMode(null)}
                   className="px-4 py-3 bg-gray-200 border-[3px] border-black rounded-xl font-bold transition-transform hover:-translate-y-0.5"
                   style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}
-                >Volver</button>
+                >{tk('volver')}</button>
                 <button
                   onClick={onJoin}
                   disabled={joinCode.length !== 4 || busy}
                   className="px-4 py-3 bg-green-400 border-[3px] border-black rounded-xl font-bold disabled:opacity-50 transition-transform hover:-translate-y-0.5"
                   style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}
-                >Entrar</button>
+                >{tk('entrar')}</button>
               </div>
             </div>
           )}
         </div>
 
         <div className="mt-6 text-center text-sm opacity-70">
-          Compartí el código de 4 letras con tus amigos para jugar juntos.
+          {tk('compartiElCodigo')}
         </div>
       </div>
     </div>
@@ -288,10 +422,11 @@ function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, er
 //                          LOBBY SCREEN
 // =================================================================
 
-function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
+function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings, preferredLang }) {
   const [copied, setCopied] = useState(false);
   const isHost = room.hostId === userId;
   const canStart = room.players.length >= 2;
+  const tk = (key) => t(key, preferredLang);
 
   const copyCode = () => {
     try { navigator.clipboard?.writeText(room.code); } catch {}
@@ -306,6 +441,9 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const currentLangs = room.settings?.languages || ['es'];
+  const langMode = currentLangs.length >= 2 ? 'both' : currentLangs[0] === 'pt' ? 'pt' : 'es';
+
   return (
     <div className="min-h-screen px-4 py-8" style={{ background: '#FAF5E9' }}>
       <div className="max-w-3xl mx-auto">
@@ -315,13 +453,13 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
             className="px-4 py-2 bg-white border-[3px] border-black rounded-xl font-bold text-sm transition-transform hover:-translate-y-0.5"
             style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}
           >
-            <LogOut className="inline w-4 h-4 mr-1" />Salir
+            <LogOut className="inline w-4 h-4 mr-1" />{tk('salir')}
           </button>
         </div>
 
         <div className="bg-white border-[3px] border-black rounded-3xl p-6 sm:p-8 mb-6" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
           <div className="text-center">
-            <p className="text-sm font-bold uppercase tracking-widest opacity-70">Código de la sala</p>
+            <p className="text-sm font-bold uppercase tracking-widest opacity-70">{tk('codigoDeSala')}</p>
             <button
               onClick={copyCode}
               className="mt-2 inline-flex items-center gap-3 px-6 py-3 bg-yellow-300 border-[3px] border-black rounded-2xl transition-transform hover:-translate-y-1"
@@ -330,13 +468,13 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
               <span className="text-5xl tracking-[0.3em]" style={{ fontFamily: '"Bagel Fat One", cursive' }}>{room.code}</span>
               {copied ? <Check className="w-6 h-6" /> : <Copy className="w-6 h-6" />}
             </button>
-            <p className="mt-3 text-sm opacity-70">{copied ? '¡Copiado!' : 'Tocá para copiar'}</p>
+            <p className="mt-3 text-sm opacity-70">{copied ? tk('copiado') : tk('tocaParaCopiar')}</p>
             <button
               onClick={shareLink}
               className="mt-3 px-4 py-2 bg-cyan-200 border-2 border-black rounded-lg text-sm font-bold transition-transform hover:-translate-y-0.5"
               style={{ boxShadow: '3px 3px 0 0 #1a1a1a' }}
             >
-              Copiar link de invitación
+              {tk('copiarLink')}
             </button>
           </div>
         </div>
@@ -344,7 +482,7 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
         <div className="bg-white border-[3px] border-black rounded-3xl p-6 mb-6" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
           <h2 className="text-2xl mb-4 flex items-center gap-2" style={{ fontFamily: '"Bagel Fat One", cursive' }}>
             <Users className="w-6 h-6" />
-            Jugadores ({room.players.length})
+            {tk('jugadores')} ({room.players.length})
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {room.players.map((p) => (
@@ -361,14 +499,14 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
                 </div>
                 <span className="flex-1 font-bold truncate">
                   {p.name}
-                  {p.id === userId && <span className="ml-1 opacity-60 text-sm">(vos)</span>}
+                  {p.id === userId && <span className="ml-1 opacity-60 text-sm">({tk('vos')})</span>}
                 </span>
                 {p.id === room.hostId && <Crown className="w-5 h-5 text-yellow-600" />}
               </div>
             ))}
             {room.players.length < 2 && (
               <div className="flex items-center justify-center px-4 py-6 border-[3px] border-dashed border-gray-400 rounded-xl col-span-full text-gray-500 italic">
-                Esperando que se sumen más jugadores...
+                {tk('esperandoMasJugadores')}
               </div>
             )}
           </div>
@@ -376,10 +514,10 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
 
         {isHost && (
           <div className="bg-white border-[3px] border-black rounded-3xl p-6 mb-6" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
-            <h2 className="text-xl mb-4" style={{ fontFamily: '"Bagel Fat One", cursive' }}>Configuración</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <h2 className="text-xl mb-4" style={{ fontFamily: '"Bagel Fat One", cursive' }}>{tk('configuracion')}</h2>
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block mb-2 text-xs font-bold uppercase tracking-wide">Rondas</label>
+                <label className="block mb-2 text-xs font-bold uppercase tracking-wide">{tk('rondas')}</label>
                 <select
                   value={room.settings.totalRounds}
                   onChange={(e) => onChangeSettings({ totalRounds: parseInt(e.target.value, 10) })}
@@ -389,7 +527,7 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
                 </select>
               </div>
               <div>
-                <label className="block mb-2 text-xs font-bold uppercase tracking-wide">Segundos/turno</label>
+                <label className="block mb-2 text-xs font-bold uppercase tracking-wide">{tk('segundosTurno')}</label>
                 <select
                   value={room.settings.roundDuration}
                   onChange={(e) => onChangeSettings({ roundDuration: parseInt(e.target.value, 10) })}
@@ -397,6 +535,30 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
                 >
                   {[40, 60, 80, 100, 120, 150].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
+              </div>
+            </div>
+
+            {/* Language settings */}
+            <div>
+              <label className="block mb-2 text-xs font-bold uppercase tracking-wide">{tk('idiomasDeLaSala')}</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: 'es', label: '🇪🇸 Español', langs: ['es'] },
+                  { key: 'pt', label: '🇧🇷 Português', langs: ['pt'] },
+                  { key: 'both', label: '🇪🇸+🇧🇷', langs: ['es', 'pt'] },
+                ].map(({ key, label, langs }) => (
+                  <button
+                    key={key}
+                    onClick={() => onChangeSettings({ languages: langs })}
+                    className="px-3 py-2 border-[3px] border-black rounded-xl font-bold text-sm transition-transform hover:-translate-y-0.5"
+                    style={{
+                      background: langMode === key ? '#FFD93D' : '#FFFFFF',
+                      boxShadow: '3px 3px 0 0 #1a1a1a',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -409,11 +571,11 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
             className="w-full px-6 py-5 bg-pink-400 border-[3px] border-black rounded-2xl text-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:-translate-y-1"
             style={{ boxShadow: '8px 8px 0 0 #1a1a1a', fontFamily: '"Bagel Fat One", cursive' }}
           >
-            {canStart ? '¡EMPEZAR!' : 'Necesitás al menos 2 jugadores'}
+            {canStart ? tk('empezar') : tk('necesitasAlMenos2')}
           </button>
         ) : (
           <div className="w-full px-6 py-5 bg-gray-100 border-[3px] border-black rounded-2xl text-center font-bold" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
-            Esperando que el anfitrión empiece...
+            {tk('esperandoAnfitrion')}
           </div>
         )}
       </div>
@@ -425,12 +587,13 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings }) {
 //                          GAME SCREEN
 // =================================================================
 
-function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onSendChat, onLeave }) {
+function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onSendChat, onLeave, preferredLang }) {
   const isDrawer = room.currentDrawerId === userId;
   const me = room.players.find(p => p.id === userId);
   const drawer = room.players.find(p => p.id === room.currentDrawerId);
   const guessersTotal = room.players.filter(p => p.id !== room.currentDrawerId).length;
   const guessedCount = room.players.filter(p => p.hasGuessedThisRound).length;
+  const tk = (key) => t(key, preferredLang);
 
   const [color, setColor] = useState('#1a1a1a');
   const [brushSize, setBrushSize] = useState(BRUSH_SIZES[1]);
@@ -440,11 +603,11 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
 
   const [timeLeft, setTimeLeft] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => {
+    const interval = setInterval(() => {
       const diff = Math.max(0, Math.ceil((room.roundEndTime - Date.now()) / 1000));
       setTimeLeft(diff);
     }, 200);
-    return () => clearInterval(t);
+    return () => clearInterval(interval);
   }, [room.roundEndTime]);
 
   useEffect(() => {
@@ -453,14 +616,11 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
 
   const displayStrokes = isDrawer ? localStrokes : room.strokes;
 
-  const handleStrokeComplete = (stroke) => onStrokeComplete(stroke);
-  const handleClearLocal = () => onClear();
-
   const handleSendChat = (e) => {
     e?.preventDefault();
-    const t = chatInput.trim();
-    if (!t) return;
-    onSendChat(t);
+    const text = chatInput.trim();
+    if (!text) return;
+    onSendChat(text);
     setChatInput('');
   };
 
@@ -488,24 +648,24 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
           </div>
 
           <div className="px-4 py-2 bg-cyan-200 border-[3px] border-black rounded-xl font-extrabold" style={{ boxShadow: '3px 3px 0 0 #1a1a1a' }}>
-            Ronda {room.currentRound + 1}/{room.settings.totalRounds}
+            {tk('ronda')} {room.currentRound + 1}/{room.settings.totalRounds}
           </div>
 
           <div className="flex-1 px-4 py-2 bg-yellow-200 border-[3px] border-black rounded-xl text-center overflow-hidden" style={{ boxShadow: '3px 3px 0 0 #1a1a1a' }}>
             {isRoundEnd ? (
               <div style={{ fontFamily: '"Bagel Fat One", cursive' }} className="text-xl">
-                La palabra era: <span className="text-pink-600">{room.revealedWord}</span>
+                {tk('laPalabraEra')} <span className="text-pink-600">{room.revealedWord}</span>
               </div>
             ) : isDrawer ? (
               <div>
-                <div className="text-xs uppercase font-bold opacity-70">Tu palabra</div>
+                <div className="text-xs uppercase font-bold opacity-70">{tk('tuPalabra')}</div>
                 <div className="text-2xl tracking-wider" style={{ fontFamily: '"Bagel Fat One", cursive' }}>
                   {room.currentWord}
                 </div>
               </div>
             ) : me?.hasGuessedThisRound ? (
               <div>
-                <div className="text-xs uppercase font-bold opacity-70">¡Adivinaste!</div>
+                <div className="text-xs uppercase font-bold opacity-70">{tk('adivinaste')}</div>
                 <div className="text-2xl tracking-wider" style={{ fontFamily: '"Bagel Fat One", cursive', color: '#2A9D8F' }}>
                   {room.currentWord}
                 </div>
@@ -513,7 +673,7 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
             ) : (
               <div>
                 <div className="text-xs uppercase font-bold opacity-70">
-                  {room.wordLength} letras — adiviná
+                  {room.wordLength} {tk('letrasAdivina')}
                 </div>
                 <div className="text-2xl" style={{ fontFamily: '"Bagel Fat One", cursive' }}>
                   {renderMaskedDisplay(masked)}
@@ -523,7 +683,7 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
           </div>
 
           <div className="px-3 py-2 bg-pink-200 border-[3px] border-black rounded-xl text-sm font-bold" style={{ boxShadow: '3px 3px 0 0 #1a1a1a' }}>
-            {guessedCount}/{guessersTotal} adivinaron
+            {guessedCount}/{guessersTotal} {tk('adivinaron')}
           </div>
         </div>
 
@@ -531,7 +691,7 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
         <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_300px] gap-4">
           {/* Players panel */}
           <div className="bg-white border-[3px] border-black rounded-2xl p-3 order-2 lg:order-1" style={{ boxShadow: '5px 5px 0 0 #1a1a1a' }}>
-            <h3 className="text-sm font-bold uppercase tracking-wider mb-2">Jugadores</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-2">{tk('jugadores')}</h3>
             <div className="space-y-2 max-h-[200px] lg:max-h-none overflow-y-auto">
               {[...room.players].sort((a, b) => b.score - a.score).map((p, idx) => {
                 const isCurrent = p.id === room.currentDrawerId;
@@ -548,7 +708,7 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-sm truncate flex items-center gap-1">
                         {p.name}
-                        {isMe && <span className="text-[10px] opacity-60">(vos)</span>}
+                        {isMe && <span className="text-[10px] opacity-60">({tk('vos')})</span>}
                         {isCurrent && <Pencil className="w-3 h-3 text-pink-600" />}
                       </div>
                       <div className="text-xs font-bold opacity-70">{p.score} pts</div>
@@ -569,7 +729,7 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
                 color={color}
                 brushSize={brushSize}
                 tool={tool}
-                onStrokeComplete={handleStrokeComplete}
+                onStrokeComplete={onStrokeComplete}
               />
             </div>
 
@@ -577,11 +737,11 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="bg-yellow-300 border-[3px] border-black rounded-2xl px-8 py-6 transform -rotate-2" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
                   <div className="text-center">
-                    <div className="text-sm font-bold uppercase">Fin de turno</div>
+                    <div className="text-sm font-bold uppercase">{tk('finDeTurno')}</div>
                     <div className="text-3xl mt-1" style={{ fontFamily: '"Bagel Fat One", cursive' }}>
                       {room.revealedWord}
                     </div>
-                    <div className="text-xs mt-2 opacity-70">Próximo turno...</div>
+                    <div className="text-xs mt-2 opacity-70">{tk('proximoTurno')}</div>
                   </div>
                 </div>
               </div>
@@ -590,13 +750,13 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
             {isDrawer && !isRoundEnd && (
               <div className="mt-3 bg-white border-[3px] border-black rounded-2xl p-3 flex flex-wrap items-center gap-2" style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}>
                 <div className="flex gap-1">
-                  <button onClick={() => setTool('pencil')} className={`p-2 border-2 border-black rounded-lg ${tool === 'pencil' ? 'bg-yellow-300' : 'bg-white'}`} title="Lápiz">
+                  <button onClick={() => setTool('pencil')} className={`p-2 border-2 border-black rounded-lg ${tool === 'pencil' ? 'bg-yellow-300' : 'bg-white'}`}>
                     <Pencil className="w-4 h-4" />
                   </button>
-                  <button onClick={() => setTool('eraser')} className={`p-2 border-2 border-black rounded-lg ${tool === 'eraser' ? 'bg-yellow-300' : 'bg-white'}`} title="Borrador">
+                  <button onClick={() => setTool('eraser')} className={`p-2 border-2 border-black rounded-lg ${tool === 'eraser' ? 'bg-yellow-300' : 'bg-white'}`}>
                     <Eraser className="w-4 h-4" />
                   </button>
-                  <button onClick={handleClearLocal} className="p-2 border-2 border-black rounded-lg bg-red-300 hover:bg-red-400" title="Limpiar">
+                  <button onClick={onClear} className="p-2 border-2 border-black rounded-lg bg-red-300 hover:bg-red-400">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -625,7 +785,7 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
             {!isDrawer && !isRoundEnd && (
               <div className="mt-3 px-4 py-2 bg-cyan-100 border-[3px] border-black rounded-xl text-center font-bold" style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}>
                 <Pencil className="inline w-4 h-4 mr-1" />
-                {drawer?.name} está dibujando...
+                {drawer?.name} {tk('estaDibujando')}
               </div>
             )}
           </div>
@@ -633,7 +793,7 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
           {/* Chat */}
           <div className="bg-white border-[3px] border-black rounded-2xl flex flex-col order-3" style={{ boxShadow: '5px 5px 0 0 #1a1a1a' }}>
             <div className="px-3 py-2 border-b-2 border-black bg-yellow-100 rounded-t-2xl">
-              <h3 className="font-bold uppercase text-sm tracking-wider">Chat</h3>
+              <h3 className="font-bold uppercase text-sm tracking-wider">{tk('chat')}</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-[300px] max-h-[60vh]">
               {(room.chat || []).map((m) => {
@@ -643,14 +803,14 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
                 if (m.type === 'correct') {
                   return (
                     <div key={m.id} className="px-2 py-1 bg-green-100 border-2 border-green-500 rounded-lg text-sm font-bold text-green-800">
-                      ✓ {m.playerName} adivinó (+{m.points} pts)
+                      ✓ {m.playerName} {tk('adivino')} (+{m.points} pts)
                     </div>
                   );
                 }
                 if (m.type === 'close') {
                   return (
                     <div key={m.id} className="px-2 py-1 bg-yellow-100 border border-yellow-500 rounded-lg text-sm">
-                      <span className="font-bold">{m.playerName}:</span> {m.message} <span className="italic opacity-70">(¡cerca!)</span>
+                      <span className="font-bold">{m.playerName}:</span> {m.message} <span className="italic opacity-70">{tk('cerca')}</span>
                     </div>
                   );
                 }
@@ -669,10 +829,10 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
                 onChange={(e) => setChatInput(e.target.value)}
                 disabled={isDrawer || me?.hasGuessedThisRound || isRoundEnd}
                 placeholder={
-                  isDrawer ? 'Estás dibujando...' :
-                  me?.hasGuessedThisRound ? '¡Ya adivinaste!' :
-                  isRoundEnd ? 'Esperá la próxima ronda...' :
-                  'Escribí tu intento...'
+                  isDrawer ? tk('estasDibujando') :
+                  me?.hasGuessedThisRound ? tk('yaAdivinaste') :
+                  isRoundEnd ? tk('esperaProximaRonda') :
+                  tk('escribiTuIntento')
                 }
                 maxLength={50}
                 className="flex-1 px-3 py-2 border-2 border-black rounded-lg text-sm focus:outline-none disabled:bg-gray-100 disabled:opacity-60 font-semibold"
@@ -696,10 +856,11 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
 //                          END SCREEN
 // =================================================================
 
-function EndScreen({ room, userId, onPlayAgain, onLeave }) {
+function EndScreen({ room, userId, onPlayAgain, onLeave, preferredLang }) {
   const isHost = room.hostId === userId;
   const ranked = [...room.players].sort((a, b) => b.score - a.score);
   const winner = ranked[0];
+  const tk = (key) => t(key, preferredLang);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 relative" style={{ background: '#FAF5E9' }}>
@@ -718,11 +879,11 @@ function EndScreen({ room, userId, onPlayAgain, onLeave }) {
         <div className="text-center mb-6">
           <div className="inline-block transform -rotate-2 mb-3">
             <div className="bg-yellow-300 px-6 py-1 border-[3px] border-black" style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}>
-              <span className="text-sm font-bold tracking-widest">FIN DEL JUEGO</span>
+              <span className="text-sm font-bold tracking-widest">{tk('finDelJuego')}</span>
             </div>
           </div>
           <h1 className="text-6xl" style={{ fontFamily: '"Bagel Fat One", cursive', textShadow: '4px 4px 0 #FF6B6B' }}>
-            ¡GANADOR!
+            {tk('ganador')}
           </h1>
         </div>
 
@@ -730,12 +891,12 @@ function EndScreen({ room, userId, onPlayAgain, onLeave }) {
           <div className="bg-yellow-200 border-[3px] border-black rounded-3xl p-8 mb-6 text-center transform -rotate-1" style={{ boxShadow: '10px 10px 0 0 #1a1a1a' }}>
             <Trophy className="w-16 h-16 mx-auto mb-2 text-yellow-700" />
             <div className="text-4xl mb-2" style={{ fontFamily: '"Bagel Fat One", cursive' }}>{winner.name}</div>
-            <div className="text-2xl font-bold">{winner.score} puntos</div>
+            <div className="text-2xl font-bold">{winner.score} pts</div>
           </div>
         )}
 
         <div className="bg-white border-[3px] border-black rounded-2xl p-4 mb-6" style={{ boxShadow: '6px 6px 0 0 #1a1a1a' }}>
-          <h2 className="text-xl mb-3" style={{ fontFamily: '"Bagel Fat One", cursive' }}>Tabla final</h2>
+          <h2 className="text-xl mb-3" style={{ fontFamily: '"Bagel Fat One", cursive' }}>{tk('tablaFinal')}</h2>
           <div className="space-y-2">
             {ranked.map((p, idx) => (
               <div key={p.id} className="flex items-center gap-3 px-3 py-2 border-2 border-black rounded-xl" style={{ background: idx === 0 ? '#FFD93D' : idx === 1 ? '#E0E0E0' : idx === 2 ? '#FFB97A' : '#FFF' }}>
@@ -744,7 +905,7 @@ function EndScreen({ room, userId, onPlayAgain, onLeave }) {
                   {p.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 font-bold">
-                  {p.name} {p.id === userId && <span className="opacity-60 text-sm">(vos)</span>}
+                  {p.name} {p.id === userId && <span className="opacity-60 text-sm">({tk('vos')})</span>}
                 </div>
                 <div className="text-lg font-bold">{p.score} pts</div>
               </div>
@@ -759,11 +920,11 @@ function EndScreen({ room, userId, onPlayAgain, onLeave }) {
               className="px-6 py-4 bg-pink-400 border-[3px] border-black rounded-2xl font-bold text-lg transition-transform hover:-translate-y-0.5"
               style={{ boxShadow: '6px 6px 0 0 #1a1a1a', fontFamily: '"Bagel Fat One", cursive' }}
             >
-              <RotateCcw className="inline w-5 h-5 mr-1" />Otra vez
+              <RotateCcw className="inline w-5 h-5 mr-1" />{tk('otraVez')}
             </button>
           ) : (
             <div className="px-6 py-4 bg-gray-100 border-[3px] border-black rounded-2xl text-center font-bold text-sm" style={{ boxShadow: '6px 6px 0 0 #1a1a1a' }}>
-              El anfitrión decide...
+              {tk('elAnfitriondecide')}
             </div>
           )}
           <button
@@ -771,7 +932,7 @@ function EndScreen({ room, userId, onPlayAgain, onLeave }) {
             className="px-6 py-4 bg-cyan-300 border-[3px] border-black rounded-2xl font-bold text-lg transition-transform hover:-translate-y-0.5"
             style={{ boxShadow: '6px 6px 0 0 #1a1a1a', fontFamily: '"Bagel Fat One", cursive' }}
           >
-            <Home className="inline w-5 h-5 mr-1" />Salir
+            <Home className="inline w-5 h-5 mr-1" />{tk('salir')}
           </button>
         </div>
       </div>
@@ -791,11 +952,10 @@ export default function App() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [preferredLang, setPreferredLang] = useState('es');
 
-  // Local strokes for the drawer (so they see their own drawing instantly)
   const [localStrokes, setLocalStrokes] = useState([]);
 
-  // === Connect socket on mount ===
   useEffect(() => {
     socket.connect();
 
@@ -806,7 +966,6 @@ export default function App() {
       setRoom(newRoom);
     });
 
-    // Live stroke from the drawer (everyone except drawer hears this)
     socket.on('stroke', (stroke) => {
       setRoom(prev => {
         if (!prev) return prev;
@@ -822,19 +981,16 @@ export default function App() {
     };
   }, []);
 
-  // Check URL for ?sala=XXXX to prefill join code
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sala = params.get('sala');
     if (sala) setJoinCode(sala.toUpperCase().slice(0, 4));
   }, []);
 
-  // Reset local strokes when round changes
   useEffect(() => {
     setLocalStrokes([]);
   }, [room?.roundStartTime]);
 
-  // === Determine screen ===
   const screen = !room
     ? 'home'
     : room.status === 'lobby'
@@ -843,12 +999,11 @@ export default function App() {
     ? 'end'
     : 'game';
 
-  // === Actions ===
   const handleCreateRoom = () => {
     if (!name.trim()) return;
     setError('');
     setBusy(true);
-    socket.emit('createRoom', { name }, (res) => {
+    socket.emit('createRoom', { name, preferredLang }, (res) => {
       setBusy(false);
       if (res?.error) { setError(res.error); return; }
       if (res?.userId) setUserId(res.userId);
@@ -859,7 +1014,7 @@ export default function App() {
     if (!name.trim() || !joinCode.trim()) return;
     setError('');
     setBusy(true);
-    socket.emit('joinRoom', { name, code: joinCode }, (res) => {
+    socket.emit('joinRoom', { name, code: joinCode, preferredLang }, (res) => {
       setBusy(false);
       if (res?.error) { setError(res.error); return; }
       if (res?.userId) setUserId(res.userId);
@@ -871,7 +1026,6 @@ export default function App() {
     setRoom(null);
     setUserId(null);
     setLocalStrokes([]);
-    // Clean URL param
     if (window.history.replaceState) {
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -895,20 +1049,18 @@ export default function App() {
     socket.emit('chat', text);
   };
 
-  // === Loading state ===
   if (!connected && !room) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF5E9' }}>
         <div className="text-center">
           <div className="text-2xl font-bold animate-pulse" style={{ fontFamily: '"Bagel Fat One", cursive' }}>
-            Conectando...
+            {t('conectando', preferredLang)}
           </div>
         </div>
       </div>
     );
   }
 
-  // === Render ===
   if (screen === 'home') {
     return (
       <HomeScreen
@@ -916,6 +1068,7 @@ export default function App() {
         joinCode={joinCode} setJoinCode={setJoinCode}
         onCreate={handleCreateRoom} onJoin={handleJoinRoom}
         error={error} busy={busy}
+        preferredLang={preferredLang} setPreferredLang={setPreferredLang}
       />
     );
   }
@@ -925,6 +1078,7 @@ export default function App() {
         room={room} userId={userId}
         onStart={handleStartGame} onLeave={handleLeave}
         onChangeSettings={handleChangeSettings}
+        preferredLang={preferredLang}
       />
     );
   }
@@ -937,6 +1091,7 @@ export default function App() {
         onClear={handleClear}
         onSendChat={handleSendChat}
         onLeave={handleLeave}
+        preferredLang={preferredLang}
       />
     );
   }
@@ -946,6 +1101,7 @@ export default function App() {
         room={room} userId={userId}
         onPlayAgain={handlePlayAgain}
         onLeave={handleLeave}
+        preferredLang={preferredLang}
       />
     );
   }
