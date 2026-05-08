@@ -212,6 +212,7 @@ const WORDS_PT_ONLY = [
 // =================================================================
 
 const rooms = new Map();
+const disconnectTimers = new Map(); // userId -> timer
 
 // =================================================================
 // HELPERS
@@ -334,6 +335,7 @@ function viewForPlayer(room, playerId) {
       hasGuessedThisRound: p.hasGuessedThisRound,
       guessedAt: p.guessedAt,
       avatarSeed: p.avatarSeed,
+      avatarEmoji: p.avatarEmoji || null,
     })),
     settings: room.settings,
     status: room.status,
@@ -524,7 +526,7 @@ io.on('connection', (socket) => {
   let myRoomCode = null;
   let myUserId = null;
 
-  socket.on('createRoom', ({ name, preferredLang }, ack) => {
+  socket.on('createRoom', ({ name, preferredLang, avatarEmoji }, ack) => {
     const cleanName = (name || '').toString().trim().slice(0, 20);
     if (!cleanName) return ack?.({ error: 'Nombre requerido' });
     const lang = ['es', 'pt'].includes(preferredLang) ? preferredLang : 'es';
@@ -535,6 +537,7 @@ io.on('connection', (socket) => {
       players: [{
         id: userId, socketId: socket.id, name: cleanName,
         avatarSeed: Math.floor(Math.random() * 1000),
+        avatarEmoji: avatarEmoji || null,
         score: 0, hasGuessedThisRound: false, guessedAt: null,
         preferredLang: lang,
       }],
@@ -557,7 +560,7 @@ io.on('connection', (socket) => {
     broadcastRoom(code);
   });
 
-  socket.on('joinRoom', ({ code, name, preferredLang }, ack) => {
+  socket.on('joinRoom', ({ code, name, preferredLang, avatarEmoji }, ack) => {
     const c = (code || '').toString().trim().toUpperCase();
     const cleanName = (name || '').toString().trim().slice(0, 20) || 'Jugador';
     const lang = ['es', 'pt'].includes(preferredLang) ? preferredLang : 'es';
@@ -568,6 +571,7 @@ io.on('connection', (socket) => {
     room.players.push({
       id: userId, socketId: socket.id, name: cleanName,
       avatarSeed: Math.floor(Math.random() * 1000),
+      avatarEmoji: avatarEmoji || null,
       score: 0, hasGuessedThisRound: false, guessedAt: null,
       preferredLang: lang,
     });
@@ -610,6 +614,16 @@ io.on('connection', (socket) => {
     const ev = { type: 'clear' };
     room.strokes.push(ev);
     socket.to(myRoomCode).emit('stroke', ev);
+  });
+
+  socket.on('reaction', ({ type }) => {
+    const room = rooms.get(myRoomCode);
+    if (!room || room.status !== 'playing') return;
+    const me = room.players.find(p => p.id === myUserId);
+    if (!me || room.currentDrawerId === myUserId) return;
+    const emoji = type === 'up' ? '👍' : '👎';
+    pushChat(room, { type: 'reaction', playerName: me.name, emoji });
+    broadcastRoom(myRoomCode);
   });
 
   socket.on('chat', (text) => {
@@ -672,13 +686,98 @@ io.on('connection', (socket) => {
     broadcastRoom(myRoomCode);
   });
 
-  socket.on('disconnect', () => handleLeave());
-  socket.on('leave', () => handleLeave());
+  socket.on('disconnect', () => {
+    if (!myRoomCode || !myUserId) return;
+    const room = rooms.get(myRoomCode);
+    if (!room) { myRoomCode = null; myUserId = null; return; }
+
+    const player = room.players.find(p => p.id === myUserId);
+    if (!player) return;
+
+    player.connected = false;
+
+    if (disconnectTimers.has(myUserId)) {
+      clearTimeout(disconnectTimers.get(myUserId));
+    }
+
+    const capturedRoomCode = myRoomCode;
+    const capturedUserId = myUserId;
+    const capturedName = player.name;
+
+    // 5 minutos para reconectar antes de remover al jugador
+    const timer = setTimeout(() => {
+      disconnectTimers.delete(capturedUserId);
+      const r = rooms.get(capturedRoomCode);
+      if (!r) return;
+      const p = r.players.find(pl => pl.id === capturedUserId);
+      if (!p || p.connected) return; // ya reconectó
+
+      const wasDrawer = r.currentDrawerId === capturedUserId;
+      r.players = r.players.filter(pl => pl.id !== capturedUserId);
+      pushChat(r, { type: 'system', message: `${capturedName} abandonó` });
+
+      if (r.hostId === capturedUserId && r.players.length > 0) {
+        r.hostId = r.players[0].id;
+        pushChat(r, { type: 'system', message: `${r.players[0].name} es el nuevo anfitrión` });
+      }
+
+      if (r.players.length === 0) {
+        clearAllTimers(r);
+        rooms.delete(capturedRoomCode);
+      } else if (r.status === 'playing' && (wasDrawer || r.players.length < 2)) {
+        endRound(r);
+      } else {
+        broadcastRoom(capturedRoomCode);
+      }
+    }, 300000);
+
+    disconnectTimers.set(myUserId, timer);
+    pushChat(room, { type: 'system', message: `${player.name} se desconectó...` });
+    broadcastRoom(myRoomCode);
+    myRoomCode = null;
+    myUserId = null;
+  });
+
+  socket.on('leave', () => {
+    if (myUserId && disconnectTimers.has(myUserId)) {
+      clearTimeout(disconnectTimers.get(myUserId));
+      disconnectTimers.delete(myUserId);
+    }
+    handleLeave();
+  });
+
+  socket.on('rejoinRoom', ({ code, userId }, ack) => {
+    const room = rooms.get(code);
+    if (!room) return ack?.({ error: 'Sala no encontrada' });
+
+    const player = room.players.find(p => p.id === userId);
+    if (!player) return ack?.({ error: 'Sesión expirada' });
+
+    if (disconnectTimers.has(userId)) {
+      clearTimeout(disconnectTimers.get(userId));
+      disconnectTimers.delete(userId);
+    }
+
+    player.socketId = socket.id;
+    player.connected = true;
+    socket.join(code);
+    myRoomCode = code;
+    myUserId = userId;
+
+    pushChat(room, { type: 'system', message: `${player.name} volvió` });
+    ack?.({ code, userId });
+    broadcastRoom(code);
+  });
 
   function handleLeave() {
     if (!myRoomCode) return;
     const room = rooms.get(myRoomCode);
     if (!room) { myRoomCode = null; myUserId = null; return; }
+
+    if (myUserId && disconnectTimers.has(myUserId)) {
+      clearTimeout(disconnectTimers.get(myUserId));
+      disconnectTimers.delete(myUserId);
+    }
 
     const player = room.players.find(p => p.id === myUserId);
     if (!player) return;

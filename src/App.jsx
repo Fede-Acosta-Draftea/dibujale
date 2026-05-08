@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import {
   Pencil, Eraser, Trash2, Send, Users, Trophy, Crown, Copy, Check,
-  ArrowRight, Clock, RotateCcw, Home, LogOut, Sparkles
+  ArrowRight, Clock, RotateCcw, Home, LogOut, Sparkles, Square, Circle
 } from 'lucide-react';
+import { setMode, setMuted, playJingle, resumeAudio } from './music.js';
 
 // =================================================================
 //                          SOCKET CONNECTION
@@ -27,6 +28,8 @@ const COLORS = [
 ];
 
 const BRUSH_SIZES = [3, 7, 14, 24, 38];
+
+const AVATARS = ['🎨','🐶','🐱','🦊','🐸','🐼','🦁','🐯','🐻','🐧','🦋','🦄','🐙','🦖','🐬','🦀','🐲','👾','🤖','🦸'];
 
 // =================================================================
 //                          I18N
@@ -80,6 +83,7 @@ const I18N = {
     ronda: 'Ronda',
     adivinaron: 'adivinaron',
     vos: 'vos',
+    reacciono: 'reaccionó con',
   },
   pt: {
     tuNombre: 'Seu nome',
@@ -128,6 +132,7 @@ const I18N = {
     ronda: 'Rodada',
     adivinaron: 'adivinharam',
     vos: 'você',
+    reacciono: 'reagiu com',
   },
 };
 
@@ -167,14 +172,27 @@ function DrawingCanvas({ strokes, isDrawer, color, brushSize, tool, onStrokeComp
   const currentStroke = useRef(null);
 
   const drawStroke = (ctx, stroke) => {
-    const { color: c, size, points, eraser } = stroke;
+    const { color: c, size, points, eraser, shape } = stroke;
     ctx.globalCompositeOperation = eraser ? 'destination-out' : 'source-over';
     ctx.strokeStyle = c;
     ctx.fillStyle = c;
     ctx.lineWidth = size;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    if (!points || points.length < 2) {
+    if (shape === 'rect') {
+      if (points.length >= 2) {
+        ctx.beginPath();
+        ctx.strokeRect(points[0].x, points[0].y, points[1].x - points[0].x, points[1].y - points[0].y);
+      }
+    } else if (shape === 'circle') {
+      if (points.length >= 2) {
+        const rx = (points[1].x - points[0].x) / 2;
+        const ry = (points[1].y - points[0].y) / 2;
+        ctx.beginPath();
+        ctx.ellipse(points[0].x + rx, points[0].y + ry, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (!points || points.length < 2) {
       ctx.beginPath();
       ctx.arc(points[0].x, points[0].y, size / 2, 0, Math.PI * 2);
       ctx.fill();
@@ -225,12 +243,11 @@ function DrawingCanvas({ strokes, isDrawer, color, brushSize, tool, onStrokeComp
     if (e.cancelable) e.preventDefault();
     setDrawing(true);
     const pos = getPos(e);
-    currentStroke.current = {
-      type: 'stroke',
-      color, size: brushSize,
-      eraser: tool === 'eraser',
-      points: [pos],
-    };
+    if (tool === 'rect' || tool === 'circle') {
+      currentStroke.current = { type: 'stroke', shape: tool, color, size: brushSize, eraser: false, points: [pos, pos] };
+    } else {
+      currentStroke.current = { type: 'stroke', color, size: brushSize, eraser: tool === 'eraser', points: [pos] };
+    }
     fullRedraw();
   };
 
@@ -238,22 +255,27 @@ function DrawingCanvas({ strokes, isDrawer, color, brushSize, tool, onStrokeComp
     if (!drawing || !isDrawer || !currentStroke.current) return;
     if (e.cancelable) e.preventDefault();
     const pos = getPos(e);
-    const last = currentStroke.current.points[currentStroke.current.points.length - 1];
-    if (Math.abs(last.x - pos.x) < 0.5 && Math.abs(last.y - pos.y) < 0.5) return;
-    currentStroke.current.points.push(pos);
-    const ctx = canvasRef.current.getContext('2d');
-    const s = currentStroke.current;
-    ctx.globalCompositeOperation = s.eraser ? 'destination-out' : 'source-over';
-    ctx.strokeStyle = s.color;
-    ctx.lineWidth = s.size;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    const prev = s.points[s.points.length - 2];
-    ctx.moveTo(prev.x, prev.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    ctx.globalCompositeOperation = 'source-over';
+    if (currentStroke.current.shape) {
+      currentStroke.current.points[1] = pos;
+      fullRedraw();
+    } else {
+      const last = currentStroke.current.points[currentStroke.current.points.length - 1];
+      if (Math.abs(last.x - pos.x) < 0.5 && Math.abs(last.y - pos.y) < 0.5) return;
+      currentStroke.current.points.push(pos);
+      const ctx = canvasRef.current.getContext('2d');
+      const s = currentStroke.current;
+      ctx.globalCompositeOperation = s.eraser ? 'destination-out' : 'source-over';
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = s.size;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      const prev = s.points[s.points.length - 2];
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
   };
 
   const handleEnd = (e) => {
@@ -288,7 +310,7 @@ function DrawingCanvas({ strokes, isDrawer, color, brushSize, tool, onStrokeComp
 //                          HOME SCREEN
 // =================================================================
 
-function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, error, busy, preferredLang, setPreferredLang }) {
+function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, error, busy, preferredLang, setPreferredLang, avatarEmoji, setAvatarEmoji }) {
   const [mode, setMode] = useState(null);
   const tk = (key) => t(key, preferredLang);
 
@@ -325,6 +347,25 @@ function HomeScreen({ name, setName, joinCode, setJoinCode, onCreate, onJoin, er
             maxLength={20}
             className="w-full px-4 py-3 text-lg border-[3px] border-black rounded-xl focus:outline-none bg-yellow-50 font-bold"
           />
+
+          {/* Avatar picker */}
+          <div className="mt-4">
+            <label className="block mb-2 text-sm font-bold tracking-wide uppercase">Tu avatar</label>
+            <div className="flex flex-wrap gap-2">
+              {AVATARS.map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={() => setAvatarEmoji(emoji)}
+                  className="w-10 h-10 text-xl border-[3px] rounded-xl transition-transform hover:-translate-y-0.5"
+                  style={{
+                    background: avatarEmoji === emoji ? '#FFD93D' : '#FFFFFF',
+                    borderColor: avatarEmoji === emoji ? '#1a1a1a' : '#d1d5db',
+                    boxShadow: avatarEmoji === emoji ? '3px 3px 0 0 #1a1a1a' : 'none',
+                  }}
+                >{emoji}</button>
+              ))}
+            </div>
+          </div>
 
           {/* Language picker */}
           <div className="mt-4">
@@ -495,7 +536,7 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings, preferr
                 }}
               >
                 <div className="w-10 h-10 rounded-full border-[3px] border-black flex items-center justify-center text-lg" style={{ background: stringToColor(p.avatarSeed), fontFamily: '"Bagel Fat One", cursive' }}>
-                  {p.name.charAt(0).toUpperCase()}
+                  {p.avatarEmoji || p.name.charAt(0).toUpperCase()}
                 </div>
                 <span className="flex-1 font-bold truncate">
                   {p.name}
@@ -587,7 +628,7 @@ function LobbyScreen({ room, userId, onStart, onLeave, onChangeSettings, preferr
 //                          GAME SCREEN
 // =================================================================
 
-function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onSendChat, onLeave, preferredLang }) {
+function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onSendChat, onReact, onLeave, preferredLang }) {
   const isDrawer = room.currentDrawerId === userId;
   const me = room.players.find(p => p.id === userId);
   const drawer = room.players.find(p => p.id === room.currentDrawerId);
@@ -609,6 +650,15 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
     }, 200);
     return () => clearInterval(interval);
   }, [room.roundEndTime]);
+
+  const [drawerAnnouncement, setDrawerAnnouncement] = useState(null);
+  useEffect(() => {
+    if (room.status === 'playing' && drawer) {
+      setDrawerAnnouncement(drawer.name);
+      const t = setTimeout(() => setDrawerAnnouncement(null), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [room.roundStartTime]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -703,7 +753,7 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
                   >
                     <div className="text-lg font-bold w-6 text-center opacity-60" style={{ fontFamily: '"Bagel Fat One", cursive' }}>{idx + 1}</div>
                     <div className="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center text-sm flex-shrink-0" style={{ background: stringToColor(p.avatarSeed), fontFamily: '"Bagel Fat One", cursive' }}>
-                      {p.name.charAt(0).toUpperCase()}
+                      {p.avatarEmoji || p.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-sm truncate flex items-center gap-1">
@@ -733,6 +783,19 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
               />
             </div>
 
+            {drawerAnnouncement && !isRoundEnd && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div className="bg-yellow-300 border-[3px] border-black rounded-2xl px-8 py-5 transform -rotate-1" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
+                  <div className="text-center">
+                    <div className="text-4xl mb-1">👑</div>
+                    <div className="text-xl font-bold" style={{ fontFamily: '"Bagel Fat One", cursive' }}>
+                      {drawerAnnouncement === me?.name ? '¡Vos dibujás!' : `¡${drawerAnnouncement} dibuja!`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isRoundEnd && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="bg-yellow-300 border-[3px] border-black rounded-2xl px-8 py-6 transform -rotate-2" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
@@ -752,6 +815,12 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
                 <div className="flex gap-1">
                   <button onClick={() => setTool('pencil')} className={`p-2 border-2 border-black rounded-lg ${tool === 'pencil' ? 'bg-yellow-300' : 'bg-white'}`}>
                     <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setTool('rect')} className={`p-2 border-2 border-black rounded-lg ${tool === 'rect' ? 'bg-yellow-300' : 'bg-white'}`}>
+                    <Square className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setTool('circle')} className={`p-2 border-2 border-black rounded-lg ${tool === 'circle' ? 'bg-yellow-300' : 'bg-white'}`}>
+                    <Circle className="w-4 h-4" />
                   </button>
                   <button onClick={() => setTool('eraser')} className={`p-2 border-2 border-black rounded-lg ${tool === 'eraser' ? 'bg-yellow-300' : 'bg-white'}`}>
                     <Eraser className="w-4 h-4" />
@@ -783,9 +852,23 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
             )}
 
             {!isDrawer && !isRoundEnd && (
-              <div className="mt-3 px-4 py-2 bg-cyan-100 border-[3px] border-black rounded-xl text-center font-bold" style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}>
-                <Pencil className="inline w-4 h-4 mr-1" />
-                {drawer?.name} {tk('estaDibujando')}
+              <div className="mt-3 flex gap-2">
+                <div className="flex-1 px-4 py-2 bg-cyan-100 border-[3px] border-black rounded-xl text-center font-bold" style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}>
+                  <Pencil className="inline w-4 h-4 mr-1" />
+                  {drawer?.name} {tk('estaDibujando')}
+                </div>
+                <button
+                  onClick={() => onReact('up')}
+                  className="px-4 py-2 bg-white border-[3px] border-black rounded-xl text-2xl transition-transform hover:-translate-y-0.5 active:scale-90"
+                  style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}
+                  title="👍"
+                >👍</button>
+                <button
+                  onClick={() => onReact('down')}
+                  className="px-4 py-2 bg-white border-[3px] border-black rounded-xl text-2xl transition-transform hover:-translate-y-0.5 active:scale-90"
+                  style={{ boxShadow: '4px 4px 0 0 #1a1a1a' }}
+                  title="👎"
+                >👎</button>
               </div>
             )}
           </div>
@@ -814,6 +897,13 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
                     </div>
                   );
                 }
+                if (m.type === 'reaction') {
+                  return (
+                    <div key={m.id} className="px-2 py-1 text-sm text-center opacity-80">
+                      <span className="font-bold">{m.playerName}</span> {tk('reacciono')} <span className="text-lg">{m.emoji}</span>
+                    </div>
+                  );
+                }
                 return (
                   <div key={m.id} className="px-2 py-1 text-sm break-words">
                     <span className="font-bold">{m.playerName}:</span> {m.message}
@@ -822,28 +912,35 @@ function GameScreen({ room, userId, localStrokes, onStrokeComplete, onClear, onS
               })}
               <div ref={chatBottomRef} />
             </div>
-            <form onSubmit={handleSendChat} className="border-t-2 border-black p-2 flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                disabled={isDrawer || me?.hasGuessedThisRound || isRoundEnd}
-                placeholder={
-                  isDrawer ? tk('estasDibujando') :
-                  me?.hasGuessedThisRound ? tk('yaAdivinaste') :
-                  isRoundEnd ? tk('esperaProximaRonda') :
-                  tk('escribiTuIntento')
-                }
-                maxLength={50}
-                className="flex-1 px-3 py-2 border-2 border-black rounded-lg text-sm focus:outline-none disabled:bg-gray-100 disabled:opacity-60 font-semibold"
-              />
-              <button
-                type="submit"
-                disabled={isDrawer || me?.hasGuessedThisRound || isRoundEnd || !chatInput.trim()}
-                className="px-3 py-2 bg-pink-300 border-2 border-black rounded-lg disabled:opacity-40 hover:bg-pink-400"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+            <form onSubmit={handleSendChat} className="border-t-2 border-black p-2 flex flex-col gap-1">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  disabled={isDrawer || me?.hasGuessedThisRound || isRoundEnd}
+                  placeholder={
+                    isDrawer ? tk('estasDibujando') :
+                    me?.hasGuessedThisRound ? tk('yaAdivinaste') :
+                    isRoundEnd ? tk('esperaProximaRonda') :
+                    tk('escribiTuIntento')
+                  }
+                  maxLength={50}
+                  className="flex-1 px-3 py-2 border-2 border-black rounded-lg text-sm focus:outline-none disabled:bg-gray-100 disabled:opacity-60 font-semibold"
+                />
+                <button
+                  type="submit"
+                  disabled={isDrawer || me?.hasGuessedThisRound || isRoundEnd || !chatInput.trim()}
+                  className="px-3 py-2 bg-pink-300 border-2 border-black rounded-lg disabled:opacity-40 hover:bg-pink-400"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+              {!isDrawer && !isRoundEnd && (
+                <div className={`text-right text-xs font-bold tabular-nums ${chatInput.length >= 45 ? 'text-red-500' : 'opacity-40'}`}>
+                  {chatInput.length}/50
+                </div>
+              )}
             </form>
           </div>
         </div>
@@ -902,7 +999,7 @@ function EndScreen({ room, userId, onPlayAgain, onLeave, preferredLang }) {
               <div key={p.id} className="flex items-center gap-3 px-3 py-2 border-2 border-black rounded-xl" style={{ background: idx === 0 ? '#FFD93D' : idx === 1 ? '#E0E0E0' : idx === 2 ? '#FFB97A' : '#FFF' }}>
                 <div className="text-xl w-8 text-center" style={{ fontFamily: '"Bagel Fat One", cursive' }}>{idx + 1}</div>
                 <div className="w-9 h-9 rounded-full border-2 border-black flex items-center justify-center" style={{ background: stringToColor(p.avatarSeed), fontFamily: '"Bagel Fat One", cursive' }}>
-                  {p.name.charAt(0).toUpperCase()}
+                  {p.avatarEmoji || p.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 font-bold">
                   {p.name} {p.id === userId && <span className="opacity-60 text-sm">({tk('vos')})</span>}
@@ -952,18 +1049,47 @@ export default function App() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const [preferredLang, setPreferredLang] = useState('es');
+  const [avatarEmoji, setAvatarEmoji] = useState('🎨');
 
+  const roomRef = useRef(null);
   const [localStrokes, setLocalStrokes] = useState([]);
+  const [musicMuted, setMusicMuted] = useState(false);
 
   useEffect(() => {
     socket.connect();
 
-    socket.on('connect', () => setConnected(true));
-    socket.on('disconnect', () => setConnected(false));
+    socket.on('connect', () => {
+      setConnected(true);
+      const saved = JSON.parse(localStorage.getItem('dibujale_session') || 'null');
+      if (saved) {
+        setReconnecting(true);
+        socket.emit('rejoinRoom', { code: saved.roomCode, userId: saved.userId }, (res) => {
+          setReconnecting(false);
+          if (res?.error) {
+            localStorage.removeItem('dibujale_session');
+            setRoom(null);
+            roomRef.current = null;
+            setUserId(null);
+          } else {
+            setUserId(saved.userId);
+            if (saved.name) setName(saved.name);
+            if (saved.preferredLang) setPreferredLang(saved.preferredLang);
+          }
+        });
+      }
+    });
+
+    socket.on('disconnect', () => {
+      setConnected(false);
+      if (roomRef.current) setReconnecting(true);
+    });
 
     socket.on('roomUpdate', (newRoom) => {
       setRoom(newRoom);
+      roomRef.current = newRoom;
+      setReconnecting(false);
     });
 
     socket.on('stroke', (stroke) => {
@@ -991,6 +1117,48 @@ export default function App() {
     setLocalStrokes([]);
   }, [room?.roundStartTime]);
 
+  // Resume audio on first click (browser autoplay policy)
+  useEffect(() => {
+    const handler = () => resumeAudio();
+    document.addEventListener('click', handler, { once: true });
+    return () => document.removeEventListener('click', handler);
+  }, []);
+
+  // Switch music mode when game status changes
+  useEffect(() => {
+    if (!room || room.status === 'lobby') {
+      setMode('lobby');
+    } else if (room.status === 'gameEnd') {
+      setMode(null);
+      playJingle('gameEnd');
+    } else if (room.status === 'roundEnd') {
+      setMode('lobby');
+      playJingle('roundEnd');
+    } else if (room.status === 'playing') {
+      setMode('playing');
+    }
+  }, [room?.status]);
+
+  // Tense music in last 10 seconds
+  useEffect(() => {
+    if (room?.status !== 'playing') return;
+    const interval = setInterval(() => {
+      const diff = Math.ceil((room.roundEndTime - Date.now()) / 1000);
+      if (diff <= 10 && diff > 0) {
+        setMode('tense');
+      } else if (diff > 10) {
+        setMode('playing');
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [room?.status, room?.roundEndTime]);
+
+  const handleToggleMute = () => {
+    const next = !musicMuted;
+    setMusicMuted(next);
+    setMuted(next);
+  };
+
   const screen = !room
     ? 'home'
     : room.status === 'lobby'
@@ -1003,10 +1171,13 @@ export default function App() {
     if (!name.trim()) return;
     setError('');
     setBusy(true);
-    socket.emit('createRoom', { name, preferredLang }, (res) => {
+    socket.emit('createRoom', { name, preferredLang, avatarEmoji }, (res) => {
       setBusy(false);
       if (res?.error) { setError(res.error); return; }
-      if (res?.userId) setUserId(res.userId);
+      if (res?.userId) {
+        setUserId(res.userId);
+        localStorage.setItem('dibujale_session', JSON.stringify({ roomCode: res.code, userId: res.userId, name, preferredLang }));
+      }
     });
   };
 
@@ -1014,17 +1185,23 @@ export default function App() {
     if (!name.trim() || !joinCode.trim()) return;
     setError('');
     setBusy(true);
-    socket.emit('joinRoom', { name, code: joinCode, preferredLang }, (res) => {
+    socket.emit('joinRoom', { name, code: joinCode, preferredLang, avatarEmoji }, (res) => {
       setBusy(false);
       if (res?.error) { setError(res.error); return; }
-      if (res?.userId) setUserId(res.userId);
+      if (res?.userId) {
+        setUserId(res.userId);
+        localStorage.setItem('dibujale_session', JSON.stringify({ roomCode: res.code, userId: res.userId, name, preferredLang }));
+      }
     });
   };
 
   const handleLeave = () => {
     socket.emit('leave');
+    localStorage.removeItem('dibujale_session');
     setRoom(null);
+    roomRef.current = null;
     setUserId(null);
+    setReconnecting(false);
     setLocalStrokes([]);
     if (window.history.replaceState) {
       window.history.replaceState({}, '', window.location.pathname);
@@ -1049,61 +1226,109 @@ export default function App() {
     socket.emit('chat', text);
   };
 
-  if (!connected && !room) {
+  const handleReact = (type) => {
+    socket.emit('reaction', { type });
+  };
+
+  // Loading: initial connect, or trying to rejoin without a known room
+  if ((!connected && !room) || (reconnecting && !room)) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF5E9' }}>
         <div className="text-center">
           <div className="text-2xl font-bold animate-pulse" style={{ fontFamily: '"Bagel Fat One", cursive' }}>
-            {t('conectando', preferredLang)}
+            {reconnecting ? 'Reconectando...' : t('conectando', preferredLang)}
           </div>
         </div>
       </div>
     );
   }
 
+  const MuteButton = (
+    <button
+      onClick={handleToggleMute}
+      title={musicMuted ? 'Activar música' : 'Silenciar música'}
+      className="fixed bottom-4 right-4 z-40 w-11 h-11 flex items-center justify-center bg-white border-[3px] border-black rounded-full text-xl transition-transform hover:-translate-y-0.5"
+      style={{ boxShadow: '3px 3px 0 0 #1a1a1a' }}
+    >
+      {musicMuted ? '🔇' : '🎵'}
+    </button>
+  );
+
   if (screen === 'home') {
     return (
-      <HomeScreen
-        name={name} setName={setName}
-        joinCode={joinCode} setJoinCode={setJoinCode}
-        onCreate={handleCreateRoom} onJoin={handleJoinRoom}
-        error={error} busy={busy}
-        preferredLang={preferredLang} setPreferredLang={setPreferredLang}
-      />
+      <>
+        <HomeScreen
+          name={name} setName={setName}
+          joinCode={joinCode} setJoinCode={setJoinCode}
+          onCreate={handleCreateRoom} onJoin={handleJoinRoom}
+          error={error} busy={busy}
+          preferredLang={preferredLang} setPreferredLang={setPreferredLang}
+          avatarEmoji={avatarEmoji} setAvatarEmoji={setAvatarEmoji}
+        />
+        {MuteButton}
+      </>
     );
   }
   if (screen === 'lobby') {
     return (
-      <LobbyScreen
-        room={room} userId={userId}
-        onStart={handleStartGame} onLeave={handleLeave}
-        onChangeSettings={handleChangeSettings}
-        preferredLang={preferredLang}
-      />
+      <>
+        {reconnecting && <ReconnectingOverlay />}
+        <LobbyScreen
+          room={room} userId={userId}
+          onStart={handleStartGame} onLeave={handleLeave}
+          onChangeSettings={handleChangeSettings}
+          preferredLang={preferredLang}
+        />
+        {MuteButton}
+      </>
     );
   }
   if (screen === 'game') {
     return (
-      <GameScreen
-        room={room} userId={userId}
-        localStrokes={localStrokes}
-        onStrokeComplete={handleStrokeComplete}
-        onClear={handleClear}
-        onSendChat={handleSendChat}
-        onLeave={handleLeave}
-        preferredLang={preferredLang}
-      />
+      <>
+        {reconnecting && <ReconnectingOverlay />}
+        <GameScreen
+          room={room} userId={userId}
+          localStrokes={localStrokes}
+          onStrokeComplete={handleStrokeComplete}
+          onClear={handleClear}
+          onSendChat={handleSendChat}
+          onReact={handleReact}
+          onLeave={handleLeave}
+          preferredLang={preferredLang}
+        />
+        {MuteButton}
+      </>
     );
   }
   if (screen === 'end') {
     return (
-      <EndScreen
-        room={room} userId={userId}
-        onPlayAgain={handlePlayAgain}
-        onLeave={handleLeave}
-        preferredLang={preferredLang}
-      />
+      <>
+        {reconnecting && <ReconnectingOverlay />}
+        <EndScreen
+          room={room} userId={userId}
+          onPlayAgain={handlePlayAgain}
+          onLeave={handleLeave}
+          preferredLang={preferredLang}
+        />
+        {MuteButton}
+      </>
     );
   }
   return null;
+}
+
+// Overlay shown when socket drops while already in a room
+function ReconnectingOverlay() {
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" style={{ backdropFilter: 'blur(2px)' }}>
+      <div className="bg-yellow-300 border-[3px] border-black rounded-2xl px-10 py-8 text-center transform -rotate-1" style={{ boxShadow: '8px 8px 0 0 #1a1a1a' }}>
+        <div className="text-3xl mb-2" style={{ fontFamily: '"Bagel Fat One", cursive' }}>
+          📡
+        </div>
+        <div className="text-xl font-bold animate-pulse">Reconectando...</div>
+        <div className="text-sm opacity-70 mt-1">No cerrés la pestaña</div>
+      </div>
+    </div>
+  );
 }
