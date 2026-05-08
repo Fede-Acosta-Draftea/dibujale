@@ -3,6 +3,6 @@ services:
     name: dibujale
     env: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install
     startCommand: npm start
     autoDeploy: true
